@@ -1,0 +1,270 @@
+{
+  "entities": {
+    "channel": {
+      "title": "IPTV Channel",
+      "description": "An IPTV channel streaming configuration",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string" },
+        "fps": { "type": "integer" },
+        "bitrate": { "type": "integer" },
+        "resolution": { "type": "string" },
+        "sourceUrl": { "type": "string" },
+        "logo": { "type": "string" },
+        "viewers": { "type": "integer" },
+        "recordingSchedule": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "status", "fps", "bitrate", "resolution", "sourceUrl", "logo", "viewers"]
+    },
+    "headend": {
+      "title": "Headend Node",
+      "description": "A stream transceiver or transcoder hardware node in the headend",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "brand": { "type": "string" },
+        "status": { "type": "string" },
+        "cpu": { "type": "integer" },
+        "memory": { "type": "integer" },
+        "temp": { "type": "integer" },
+        "inputSignal": { "type": "string" },
+        "outputSignal": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "brand", "status", "cpu", "memory", "temp", "inputSignal", "outputSignal"]
+    },
+    "tv": {
+      "title": "Hospitality TV",
+      "description": "In-room smart hospitality TV device",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "hotelId": { "type": "string" },
+        "brand": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "status": { "type": "string" },
+        "appVersion": { "type": "string" },
+        "firmware": { "type": "string" },
+        "volume": { "type": "integer" },
+        "powerSchedule": { "type": "string" },
+        "inputSource": { "type": "string" },
+        "lastReboot": { "type": "string" }
+      },
+      "required": ["id", "roomNumber", "hotelId", "brand", "ipAddress", "status", "appVersion", "firmware", "volume", "powerSchedule", "inputSource", "lastReboot"]
+    },
+    "guest": {
+      "title": "Hotel Guest",
+      "description": "A guest checking in or out, associated with a room reservation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "checkInDate": { "type": "string" },
+        "checkOutDate": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "status": { "type": "string" },
+        "language": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "phone", "checkInDate", "checkOutDate", "roomNumber", "status", "language"]
+    },
+    "room": {
+      "title": "Hotel Room",
+      "description": "A room in the hotel property tracking status, occupancy, and housekeeping",
+      "type": "object",
+      "properties": {
+        "number": { "type": "string" },
+        "building": { "type": "string" },
+        "floor": { "type": "integer" },
+        "type": { "type": "string" },
+        "housekeeping": { "type": "string" },
+        "dnd": { "type": "boolean" },
+        "miniBarStatus": { "type": "string" },
+        "occupancy": { "type": "boolean" },
+        "guestId": { "type": "string" }
+      },
+      "required": ["number", "building", "floor", "type", "housekeeping", "dnd", "miniBarStatus", "occupancy"]
+    },
+    "order": {
+      "title": "Room Service Order",
+      "description": "A kitchen or service order placed by a guest via the in-room portal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string" },
+        "payment": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "roomNumber", "items", "total", "status", "payment", "timestamp"]
+    },
+    "folioCharge": {
+      "title": "Folio Charge",
+      "description": "A transaction item charged to a guest room's billing folio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "roomNumber", "description", "amount", "category", "date"]
+    },
+    "message": {
+      "title": "Guest Message",
+      "description": "Direct communication message between guests and the hotel front desk",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sender": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["id", "sender", "roomNumber", "text", "timestamp", "isRead"]
+    },
+    "iotState": {
+      "title": "IoT Smart State",
+      "description": "The current state of in-room smart smart devices and thermostat",
+      "type": "object",
+      "properties": {
+        "roomNumber": { "type": "string" },
+        "doorLocked": { "type": "boolean" },
+        "lightsIntensity": { "type": "integer" },
+        "hvacOn": { "type": "boolean" },
+        "thermostatTemp": { "type": "number" },
+        "curtainsOpen": { "type": "boolean" },
+        "occupancyDetected": { "type": "boolean" },
+        "energyConsumption": { "type": "number" }
+      },
+      "required": ["roomNumber", "doorLocked", "lightsIntensity", "hvacOn", "thermostatTemp", "curtainsOpen", "occupancyDetected", "energyConsumption"]
+    },
+    "systemLog": {
+      "title": "System Log",
+      "description": "Diagnostics and telemetry logs from the hospitality platform modules",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "severity": { "type": "string" },
+        "module": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "severity", "module", "message"]
+    },
+    "menuItem": {
+      "title": "Menu Item",
+      "description": "A food, drink, or service item available on the room service menu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "image": { "type": "string" },
+        "stock": { "type": "integer" }
+      },
+      "required": ["id", "name", "category", "price", "image", "stock"]
+    },
+    "softwarePackage": {
+      "title": "TV Software Package",
+      "description": "IPTV software versions, binaries, and packages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "platform": { "type": "string" },
+        "releaseDate": { "type": "string" },
+        "changelog": { "type": "string" },
+        "packageUrl": { "type": "string" }
+      },
+      "required": ["id", "name", "version", "platform", "releaseDate", "changelog"]
+    },
+    "settings": {
+      "title": "System Settings",
+      "description": "Global hotel and system configuration variables",
+      "type": "object",
+      "properties": {
+        "orgName": { "type": "string" },
+        "orgSlogan": { "type": "string" },
+        "supportEmail": { "type": "string" },
+        "supportPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "timezone": { "type": "string" },
+        "currency": { "type": "string" },
+        "suiteRate": { "type": "number" },
+        "penthouseRate": { "type": "number" },
+        "deluxeRate": { "type": "number" },
+        "standardRate": { "type": "number" },
+        "defaultCleanInterval": { "type": "integer" }
+      },
+      "required": ["orgName", "orgSlogan", "supportEmail", "supportPhone", "address", "timezone", "currency", "suiteRate", "penthouseRate", "deluxeRate", "standardRate", "defaultCleanInterval"]
+    }
+  },
+  "firestore": {
+    "/channels/{channelId}": {
+      "schema": "channel",
+      "description": "Hotel television streams and broadcast categories"
+    },
+    "/headends/{headendId}": {
+      "schema": "headend",
+      "description": "Central IPTV receiver and transcoder nodes"
+    },
+    "/tvs/{tvId}": {
+      "schema": "tv",
+      "description": "Smart hospitality TVs deployed in guest rooms"
+    },
+    "/guests/{guestId}": {
+      "schema": "guest",
+      "description": "Active hotel guests and reservation histories"
+    },
+    "/rooms/{roomNumber}": {
+      "schema": "room",
+      "description": "Rooms configuration, dnd state, and occupancy"
+    },
+    "/orders/{orderId}": {
+      "schema": "order",
+      "description": "Active and completed in-room dining orders"
+    },
+    "/folios/{folioId}": {
+      "schema": "folioCharge",
+      "description": "Guest billing entries and room ledger lines"
+    },
+    "/messages/{messageId}": {
+      "schema": "message",
+      "description": "Chat and alerts exchanged between guest portal and staff dashboard"
+    },
+    "/iotStates/{roomNumber}": {
+      "schema": "iotState",
+      "description": "Live IoT sensory reading and state per room"
+    },
+    "/systemLogs/{logId}": {
+      "schema": "systemLog",
+      "description": "Diagnostics and telemetry logs from IPTV software platforms"
+    },
+    "/menuItems/{menuItemId}": {
+      "schema": "menuItem",
+      "description": "Room service dining options and catalog prices"
+    },
+    "/softwarePackages/{packageId}": {
+      "schema": "softwarePackage",
+      "description": "Available TV application binaries and release configurations"
+    },
+    "/settings/config": {
+      "schema": "settings",
+      "description": "Global hotel enterprise organizational branding parameters"
+    }
+  }
+}

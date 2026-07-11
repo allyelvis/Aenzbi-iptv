@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { IPTVChannel } from "../types";
-import { Tv, Play, Plus, RefreshCw, AlertCircle, Radio, Trash2, Video, Database, Upload, BarChart3 } from "lucide-react";
+import { Tv, Play, Plus, RefreshCw, AlertCircle, Radio, Trash2, Video, Database, Upload, BarChart3, Cloud } from "lucide-react";
 
 interface IPTVModuleProps {
   channels: IPTVChannel[];
@@ -17,6 +17,33 @@ export default function IPTVModule({ channels, onAddChannel, onUpdateChannel }: 
   const [newChanLogo, setNewChanLogo] = useState("📺");
   const [m3uPlaylist, setM3uPlaylist] = useState("");
   const [showImportModal, setShowImportModal] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
+  const [backupUrl, setBackupUrl] = useState<string | null>(null);
+  const [backupFileName, setBackupFileName] = useState<string | null>(null);
+
+  const handleBackupChannels = async () => {
+    setIsBackingUp(true);
+    setBackupUrl(null);
+    try {
+      const res = await fetch("/api/storage/backup-m3u", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setBackupUrl(data.downloadUrl);
+          setBackupFileName(data.fileName);
+        } else {
+          alert("Failed to create stream backup: " + (data.error || "Unknown error"));
+        }
+      } else {
+        alert("Failed to contact backup service");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("Error during backup: " + err.message);
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
 
   const filteredChannels = filter === "all" ? channels : channels.filter(c => c.category === filter);
 
@@ -80,11 +107,23 @@ export default function IPTVModule({ channels, onAddChannel, onUpdateChannel }: 
         </div>
         <div className="flex items-center gap-2">
           <button 
+            onClick={handleBackupChannels}
+            disabled={isBackingUp}
+            className={`px-3.5 py-1.5 text-xs font-semibold border rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors ${
+              isBackingUp 
+                ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed" 
+                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100/80 hover:text-emerald-800"
+            }`}
+          >
+            <Cloud className={`h-3.5 w-3.5 ${isBackingUp ? "animate-bounce" : "text-emerald-600"}`} />
+            {isBackingUp ? "Backing up..." : "Backup streams"}
+          </button>
+          <button 
             onClick={() => setShowImportModal(true)}
             className="px-3.5 py-1.5 text-xs font-semibold border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-lg flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
             <Upload className="h-3.5 w-3.5 text-slate-500" />
-            Import M3U Playlist
+            Import M3U
           </button>
           <button 
             onClick={() => setShowAddForm(!showAddForm)}
@@ -95,6 +134,37 @@ export default function IPTVModule({ channels, onAddChannel, onUpdateChannel }: 
           </button>
         </div>
       </div>
+
+      {backupUrl && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl text-xs text-emerald-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-start gap-2.5">
+            <div className="p-1 bg-emerald-500 text-white rounded-full mt-0.5">
+              <svg className="h-3 w-3 fill-current" viewBox="0 0 20 20"><path d="M0 11l2-2 5 5L18 3l2 2L7 18z"/></svg>
+            </div>
+            <div>
+              <p className="font-semibold text-emerald-900">M3U Playlist Backup Saved!</p>
+              <p className="text-emerald-700 font-medium mt-0.5">Stored as: <span className="font-mono text-[10px] bg-emerald-100/50 px-1 py-0.5 rounded">{backupFileName}</span></p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <a 
+              href={backupUrl} 
+              target="_blank" 
+              referrerPolicy="no-referrer" 
+              rel="noopener noreferrer" 
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center cursor-pointer shadow-sm shadow-emerald-100 whitespace-nowrap transition-colors"
+            >
+              Download M3U Backup
+            </a>
+            <button 
+              onClick={() => setBackupUrl(null)} 
+              className="px-2 py-1.5 border border-emerald-200 text-emerald-600 bg-white hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors text-[10px] font-semibold"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {showImportModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">

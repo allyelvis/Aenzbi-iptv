@@ -1,0 +1,257 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Blueprints
+
+    function isValidChannel(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'status', 'fps', 'bitrate', 'resolution', 'sourceUrl', 'logo', 'viewers'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.category is string && data.category.size() <= 128
+        && data.status is string && data.status.size() <= 64
+        && data.fps is int
+        && data.bitrate is int
+        && data.resolution is string && data.resolution.size() <= 64
+        && data.sourceUrl is string && data.sourceUrl.size() <= 1024
+        && data.logo is string && data.logo.size() <= 16
+        && data.viewers is int;
+    }
+
+    function isValidHeadend(data) {
+      return data.keys().hasAll(['id', 'name', 'type', 'brand', 'status', 'cpu', 'memory', 'temp', 'inputSignal', 'outputSignal'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.type is string && data.type.size() <= 128
+        && data.brand is string && data.brand.size() <= 128
+        && data.status is string && data.status.size() <= 64
+        && data.cpu is int
+        && data.memory is int
+        && data.temp is int
+        && data.inputSignal is string && data.inputSignal.size() <= 256
+        && data.outputSignal is string && data.outputSignal.size() <= 256;
+    }
+
+    function isValidTv(data) {
+      return data.keys().hasAll(['id', 'roomNumber', 'hotelId', 'brand', 'ipAddress', 'status', 'appVersion', 'firmware', 'volume', 'powerSchedule', 'inputSource', 'lastReboot'])
+        && data.id is string && data.id.size() <= 128
+        && data.roomNumber is string && data.roomNumber.size() <= 32
+        && data.hotelId is string && data.hotelId.size() <= 64
+        && data.brand is string && data.brand.size() <= 128
+        && data.ipAddress is string && data.ipAddress.size() <= 64
+        && data.status is string && data.status.size() <= 64
+        && data.appVersion is string && data.appVersion.size() <= 64
+        && data.firmware is string && data.firmware.size() <= 128
+        && data.volume is int
+        && data.powerSchedule is string && data.powerSchedule.size() <= 128
+        && data.inputSource is string && data.inputSource.size() <= 128
+        && data.lastReboot is string && data.lastReboot.size() <= 64;
+    }
+
+    function isValidGuest(data) {
+      return data.keys().hasAll(['id', 'name', 'email', 'phone', 'checkInDate', 'checkOutDate', 'roomNumber', 'status', 'language'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.email is string && data.email.size() <= 256
+        && data.phone is string && data.phone.size() <= 64
+        && data.checkInDate is string && data.checkInDate.size() <= 64
+        && data.checkOutDate is string && data.checkOutDate.size() <= 64
+        && data.roomNumber is string && data.roomNumber.size() <= 32
+        && data.status is string && data.status.size() <= 64
+        && data.language is string && data.language.size() <= 16;
+    }
+
+    function isValidRoom(data) {
+      return data.keys().hasAll(['number', 'building', 'floor', 'type', 'housekeeping', 'dnd', 'miniBarStatus', 'occupancy'])
+        && data.number is string && data.number.size() <= 32
+        && data.building is string && data.building.size() <= 128
+        && data.floor is int
+        && data.type is string && data.type.size() <= 128
+        && data.housekeeping is string && data.housekeeping.size() <= 64
+        && data.dnd is bool
+        && data.miniBarStatus is string && data.miniBarStatus.size() <= 64
+        && data.occupancy is bool;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['id', 'roomNumber', 'items', 'total', 'status', 'payment', 'timestamp'])
+        && data.id is string && data.id.size() <= 128
+        && data.roomNumber is string && data.roomNumber.size() <= 32
+        && data.items is list
+        && data.total is number
+        && data.status is string && data.status.size() <= 64
+        && data.payment is string && data.payment.size() <= 128
+        && data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
+    function isValidFolioCharge(data) {
+      return data.keys().hasAll(['id', 'roomNumber', 'description', 'amount', 'category', 'date'])
+        && data.id is string && data.id.size() <= 128
+        && data.roomNumber is string && data.roomNumber.size() <= 32
+        && data.description is string && data.description.size() <= 512
+        && data.amount is number
+        && data.category is string && data.category.size() <= 128
+        && data.date is string && data.date.size() <= 64;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['id', 'sender', 'roomNumber', 'text', 'timestamp', 'isRead'])
+        && data.id is string && data.id.size() <= 128
+        && data.sender is string && data.sender.size() <= 128
+        && data.roomNumber is string && data.roomNumber.size() <= 32
+        && data.text is string && data.text.size() <= 2048
+        && data.timestamp is string && data.timestamp.size() <= 64
+        && data.isRead is bool;
+    }
+
+    function isValidIotState(data) {
+      return data.keys().hasAll(['roomNumber', 'doorLocked', 'lightsIntensity', 'hvacOn', 'thermostatTemp', 'curtainsOpen', 'occupancyDetected', 'energyConsumption'])
+        && data.roomNumber is string && data.roomNumber.size() <= 32
+        && data.doorLocked is bool
+        && data.lightsIntensity is int
+        && data.hvacOn is bool
+        && data.thermostatTemp is number
+        && data.curtainsOpen is bool
+        && data.occupancyDetected is bool
+        && data.energyConsumption is number;
+    }
+
+    function isValidSystemLog(data) {
+      return data.keys().hasAll(['id', 'timestamp', 'severity', 'module', 'message'])
+        && data.id is string && data.id.size() <= 128
+        && data.timestamp is string && data.timestamp.size() <= 64
+        && data.severity is string && data.severity.size() <= 32
+        && data.module is string && data.module.size() <= 128
+        && data.message is string && data.message.size() <= 2048;
+    }
+
+    function isValidMenuItem(data) {
+      return data.keys().hasAll(['id', 'name', 'category', 'price', 'image', 'stock'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.category is string && data.category.size() <= 128
+        && data.price is number
+        && data.image is string && data.image.size() <= 16
+        && data.stock is int;
+    }
+
+    function isValidSoftwarePackage(data) {
+      return data.keys().hasAll(['id', 'name', 'version', 'platform', 'releaseDate', 'changelog'])
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 256
+        && data.version is string && data.version.size() <= 64
+        && data.platform is string && data.platform.size() <= 128
+        && data.releaseDate is string && data.releaseDate.size() <= 64
+        && data.changelog is string && data.changelog.size() <= 4096;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['orgName', 'orgSlogan', 'supportEmail', 'supportPhone', 'address', 'timezone', 'currency', 'suiteRate', 'penthouseRate', 'deluxeRate', 'standardRate', 'defaultCleanInterval'])
+        && data.orgName is string && data.orgName.size() <= 256
+        && data.orgSlogan is string && data.orgSlogan.size() <= 512
+        && data.supportEmail is string && data.supportEmail.size() <= 256
+        && data.supportPhone is string && data.supportPhone.size() <= 64
+        && data.address is string && data.address.size() <= 512
+        && data.timezone is string && data.timezone.size() <= 128
+        && data.currency is string && data.currency.size() <= 32
+        && data.suiteRate is number
+        && data.penthouseRate is number
+        && data.deluxeRate is number
+        && data.standardRate is number
+        && data.defaultCleanInterval is int;
+    }
+
+    // Rules matching each collection
+
+    match /channels/{channelId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidChannel(request.resource.data) && isValidId(channelId);
+      allow delete: if isSignedIn();
+    }
+
+    match /headends/{headendId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidHeadend(request.resource.data) && isValidId(headendId);
+      allow delete: if isSignedIn();
+    }
+
+    match /tvs/{tvId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidTv(request.resource.data) && isValidId(tvId);
+      allow delete: if isSignedIn();
+    }
+
+    match /guests/{guestId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidGuest(request.resource.data) && isValidId(guestId);
+      allow delete: if isSignedIn();
+    }
+
+    match /rooms/{roomNumber} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidRoom(request.resource.data) && isValidId(roomNumber);
+      allow delete: if isSignedIn();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidOrder(request.resource.data) && isValidId(orderId);
+      allow delete: if isSignedIn();
+    }
+
+    match /folios/{folioId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidFolioCharge(request.resource.data) && isValidId(folioId);
+      allow delete: if isSignedIn();
+    }
+
+    match /messages/{messageId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidMessage(request.resource.data) && isValidId(messageId);
+      allow delete: if isSignedIn();
+    }
+
+    match /iotStates/{roomNumber} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidIotState(request.resource.data) && isValidId(roomNumber);
+      allow delete: if isSignedIn();
+    }
+
+    match /systemLogs/{logId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidSystemLog(request.resource.data) && isValidId(logId);
+      allow delete: if isSignedIn();
+    }
+
+    match /menuItems/{menuItemId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidMenuItem(request.resource.data) && isValidId(menuItemId);
+      allow delete: if isSignedIn();
+    }
+
+    match /softwarePackages/{packageId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidSoftwarePackage(request.resource.data) && isValidId(packageId);
+      allow delete: if isSignedIn();
+    }
+
+    match /settings/config {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isValidSettings(request.resource.data);
+      allow delete: if false;
+    }
+  }
+}
