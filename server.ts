@@ -100,6 +100,38 @@ let systemLogs = [
   { id: "log-5", timestamp: "11:30:22", severity: "info", module: "Hotel PMS", message: "Guest reservation checked in: Room 201 - Sato Kenji. Welcome greeting deployed." },
 ];
 
+let menuItems = [
+  { id: "m-1", name: "Signature English Breakfast", category: "Breakfast", price: 24.50, image: "🥚", stock: 50 },
+  { id: "m-2", name: "Belgian Waffles with Berries", category: "Breakfast", price: 18.00, image: "🥞", stock: 30 },
+  { id: "m-3", name: "Wagyu Beef Club Sandwich", category: "Lunch/Dinner", price: 29.00, image: "🥪", stock: 40 },
+  { id: "m-4", name: "Pan-Seared Sea Bass", category: "Lunch/Dinner", price: 38.50, image: "🐟", stock: 25 },
+  { id: "m-5", name: "Fresh Squeezed Orange Juice", category: "Beverages", price: 8.50, image: "🍊", stock: 100 },
+  { id: "m-6", name: "Kona Blend Single-Origin Coffee", category: "Beverages", price: 9.00, image: "☕", stock: 120 },
+  { id: "m-7", name: "Grand Chocolate Lava Cake", category: "Desserts", price: 14.50, image: "🍰", stock: 15 },
+];
+
+let softwarePackages = [
+  { id: "sw-1", name: "Aenzbi IPTV App v4.3.0", version: "v4.3.0", platform: "Samsung Tizen", releaseDate: "2026-07-01", changelog: "Added dynamic room service ordering & volume controls." },
+  { id: "sw-2", name: "Aenzbi IPTV App v4.2.1", version: "v4.2.1", platform: "LG WebOS", releaseDate: "2026-06-15", changelog: "Enhanced stability for multicasting streams." },
+  { id: "sw-3", name: "Aenzbi IPTV OS v12.1-r3", version: "v12.1", platform: "Android TV", releaseDate: "2026-05-10", changelog: "Android TV native pipeline hardware acceleration." },
+  { id: "sw-4", name: "Aenzbi IPTV App v4.2.1", version: "v4.2.1", platform: "Samsung Tizen", releaseDate: "2026-06-20", changelog: "Samsung Tizen screen orientation fixes." }
+];
+
+let settings = {
+  orgName: "Luxor Grand Resorts & Spas",
+  orgSlogan: "Luxury Hospitality & Branded Entertainment",
+  supportEmail: "support@luxorresorts.com",
+  supportPhone: "+1 (800) 555-0199",
+  address: "777 Las Vegas Blvd, Las Vegas, NV",
+  timezone: "UTC-8 (Pacific Time)",
+  currency: "USD ($)",
+  suiteRate: 450,
+  penthouseRate: 1200,
+  deluxeRate: 350,
+  standardRate: 180,
+  defaultCleanInterval: 24, // hours
+};
+
 // Helper to add system log
 function addLog(severity: string, module: string, message: string) {
   const now = new Date();
@@ -179,6 +211,59 @@ app.get("/api/tvs", (req, res) => {
   res.json(tvs);
 });
 
+// System & Organization Settings
+app.get("/api/settings", (req, res) => {
+  res.json(settings);
+});
+
+app.patch("/api/settings", (req, res) => {
+  settings = { ...settings, ...req.body };
+  addLog("info", "Settings Controller", "Organization and Room Policies updated.");
+  res.json(settings);
+});
+
+app.post("/api/tvs", (req, res) => {
+  const { roomNumber, brand, ipAddress, appVersion, firmware } = req.body;
+  if (!roomNumber) {
+    return res.status(400).json({ error: "Room number is required" });
+  }
+  const exists = tvs.some(t => t.roomNumber === roomNumber);
+  if (exists) {
+    return res.status(400).json({ error: `A TV device is already registered for Room ${roomNumber}.` });
+  }
+
+  const newTv = {
+    id: `tv-${roomNumber}`,
+    roomNumber,
+    hotelId: "H-LDN",
+    brand: brand || "Android TV",
+    ipAddress: ipAddress || `192.168.10.${100 + Math.floor(Math.random() * 150)}`,
+    status: "online" as const,
+    appVersion: appVersion || "v4.3.0",
+    firmware: firmware || "A-ATV-12.1",
+    volume: 15,
+    powerSchedule: "No Policy",
+    inputSource: "HDMI 1 (IPTV)",
+    lastReboot: "N/A"
+  };
+
+  tvs.push(newTv);
+  addLog("info", "Hospitality TV", `Manual TV fleet registration complete: Room ${roomNumber} (${newTv.brand})`);
+  res.status(201).json(newTv);
+});
+
+app.delete("/api/tvs/:id", (req, res) => {
+  const { id } = req.params;
+  const index = tvs.findIndex(t => t.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: "TV device not found" });
+  }
+  const deletedTv = tvs[index];
+  tvs.splice(index, 1);
+  addLog("warning", "Hospitality TV", `Decommissioned TV device in Room ${deletedTv.roomNumber}`);
+  res.json({ success: true, message: `TV for Room ${deletedTv.roomNumber} decommissioned.` });
+});
+
 app.post("/api/tvs/:id/command", (req, res) => {
   const { id } = req.params;
   const { command, value } = req.body;
@@ -198,6 +283,8 @@ app.post("/api/tvs/:id/command", (req, res) => {
       }, 5000);
     } else if (command === "volume") {
       tvs[index].volume = Number(value);
+    } else if (command === "status") {
+      tvs[index].status = value as "online" | "standby" | "offline";
     } else if (command === "input") {
       tvs[index].inputSource = String(value);
     } else if (command === "powerPolicy") {
@@ -235,6 +322,85 @@ app.patch("/api/rooms/:number", (req, res) => {
   } else {
     res.status(404).json({ error: "Room not found" });
   }
+});
+
+app.post("/api/rooms", (req, res) => {
+  const { number, building, floor, type } = req.body;
+  if (!number) {
+    return res.status(400).json({ error: "Room number is required" });
+  }
+  const exists = rooms.some(r => r.number === number);
+  if (exists) {
+    return res.status(400).json({ error: `Room ${number} already exists` });
+  }
+
+  const newRoom = {
+    number,
+    building: building || "Main Block",
+    floor: Number(floor) || 1,
+    type: type || "Standard",
+    housekeeping: "Clean" as const,
+    dnd: false,
+    miniBarStatus: "Stocked" as const,
+    occupancy: false,
+    guestId: undefined
+  };
+
+  rooms.push(newRoom);
+
+  // Auto-provision corresponding Hospitality TV for this room
+  const newTv = {
+    id: `tv-${number}`,
+    roomNumber: number,
+    hotelId: "H-LDN",
+    brand: "Android TV" as const,
+    ipAddress: `192.168.10.${100 + Math.floor(Math.random() * 150)}`,
+    status: "online" as const,
+    appVersion: "v4.3.0",
+    firmware: "A-ATV-12.1",
+    volume: 20,
+    powerSchedule: "No Policy",
+    inputSource: "HDMI 1 (IPTV)",
+    lastReboot: "N/A"
+  };
+  tvs.push(newTv);
+
+  // Auto-provision corresponding Smart IoT Node
+  const newIot = {
+    roomNumber: number,
+    doorLocked: true,
+    lightsIntensity: 40,
+    hvacOn: true,
+    thermostatTemp: 22.0,
+    curtainsOpen: false,
+    occupancyDetected: false,
+    energyConsumption: 0.0
+  };
+  iotStates.push(newIot);
+
+  addLog("info", "Hotel PMS", `New Room ${number} created. Auto-provisioned Android TV (IP: ${newTv.ipAddress}) and IoT node.`);
+  res.status(201).json(newRoom);
+});
+
+app.delete("/api/rooms/:number", (req, res) => {
+  const { number } = req.params;
+  const roomIndex = rooms.findIndex(r => r.number === number);
+  if (roomIndex === -1) {
+    return res.status(404).json({ error: "Room not found" });
+  }
+
+  rooms.splice(roomIndex, 1);
+
+  // Remove corresponding TV
+  const tvIndex = tvs.findIndex(t => t.roomNumber === number);
+  if (tvIndex !== -1) tvs.splice(tvIndex, 1);
+
+  // Remove corresponding IoT
+  const iotIndex = iotStates.findIndex(i => i.roomNumber === number);
+  if (iotIndex !== -1) iotStates.splice(iotIndex, 1);
+
+  addLog("warning", "Hotel PMS", `Room ${number} and all its connected IoT and TV hardware links decommissioned.`);
+  res.json({ success: true, message: `Room ${number} successfully deleted.` });
 });
 
 app.get("/api/guests", (req, res) => {
@@ -347,6 +513,110 @@ app.patch("/api/orders/:id", (req, res) => {
     res.json(orders[index]);
   } else {
     res.status(404).json({ error: "Order not found" });
+  }
+});
+
+// Dynamic Restaurant Menu Management APIs
+app.get("/api/menu", (req, res) => {
+  res.json(menuItems);
+});
+
+app.post("/api/menu", (req, res) => {
+  const { name, category, price, image, stock } = req.body;
+  const newItem = {
+    id: `m-${Date.now()}`,
+    name: name || "New Culinary Dish",
+    category: category || "Lunch/Dinner",
+    price: Number(price) || 15.00,
+    image: image || "🍛",
+    stock: Number(stock) || 50
+  };
+  menuItems.push(newItem);
+  addLog("info", "Restaurant POS", `Menu item added: ${newItem.name} (${newItem.category}) at $${newItem.price.toFixed(2)}`);
+  res.status(201).json(newItem);
+});
+
+app.patch("/api/menu/:id", (req, res) => {
+  const { id } = req.params;
+  const index = menuItems.findIndex(m => m.id === id);
+  if (index !== -1) {
+    menuItems[index] = { ...menuItems[index], ...req.body };
+    addLog("info", "Restaurant POS", `Menu item ${menuItems[index].name} details/stock updated.`);
+    res.json(menuItems[index]);
+  } else {
+    res.status(404).json({ error: "Menu item not found" });
+  }
+});
+
+app.delete("/api/menu/:id", (req, res) => {
+  const { id } = req.params;
+  const index = menuItems.findIndex(m => m.id === id);
+  if (index !== -1) {
+    const deletedName = menuItems[index].name;
+    menuItems.splice(index, 1);
+    addLog("warning", "Restaurant POS", `Menu item "${deletedName}" removed from active kitchen offerings.`);
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: "Menu item not found" });
+  }
+});
+
+// TV Software Packages & Upgrades APIs
+app.get("/api/tv-software", (req, res) => {
+  res.json(softwarePackages);
+});
+
+app.post("/api/tv-software", (req, res) => {
+  const { name, version, platform, changelog } = req.body;
+  const newPkg = {
+    id: `sw-${Date.now()}`,
+    name: name || `Software Release ${version}`,
+    version: version || "v1.0.0",
+    platform: platform || "Samsung Tizen",
+    releaseDate: new Date().toISOString().split('T')[0],
+    changelog: changelog || "General bug fixes and performance improvements."
+  };
+  softwarePackages.unshift(newPkg);
+  addLog("security", "Hospitality TV", `New software package published: ${newPkg.name} for ${newPkg.platform}.`);
+  res.status(201).json(newPkg);
+});
+
+app.post("/api/tvs/:id/upgrade", (req, res) => {
+  const { id } = req.params;
+  const { version, firmware } = req.body;
+  const index = tvs.findIndex(t => t.id === id);
+  if (index !== -1) {
+    const tv = tvs[index];
+    const oldVersion = tv.appVersion;
+    tv.status = "offline";
+    addLog("warning", "Hospitality TV", `TV Room ${tv.roomNumber} is undergoing an OTA Software Update to version ${version}.`);
+    
+    setTimeout(() => {
+      const idx = tvs.findIndex(t => t.id === id);
+      if (idx !== -1) {
+        tvs[idx].status = "online";
+        tvs[idx].appVersion = version;
+        if (firmware) tvs[idx].firmware = firmware;
+        tvs[idx].lastReboot = new Date().toISOString().replace('T', ' ').substring(0, 16);
+        addLog("info", "Hospitality TV", `TV Room ${tvs[idx].roomNumber} successfully upgraded from ${oldVersion} to ${version}. Reboot complete.`);
+      }
+    }, 4000);
+    
+    res.json({ success: true, message: "Upgrade initiated" });
+  } else {
+    res.status(404).json({ error: "TV not found" });
+  }
+});
+
+app.patch("/api/tvs/:id/config", (req, res) => {
+  const { id } = req.params;
+  const index = tvs.findIndex(t => t.id === id);
+  if (index !== -1) {
+    tvs[index] = { ...tvs[index], ...req.body };
+    addLog("info", "Hospitality TV", `TV Room ${tvs[index].roomNumber} configuration policies updated.`);
+    res.json(tvs[index]);
+  } else {
+    res.status(404).json({ error: "TV not found" });
   }
 });
 

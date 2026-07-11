@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from "react";
-import { IPTVChannel, RestaurantItem, SmartRoomIoT } from "../types";
-import { RESTAURANT_MENU } from "../data";
-import { Monitor, Volume2, Flame, Thermometer, Moon, Sun, ShoppingBag, Send, AlertOctagon, Power, Heart, Wifi } from "lucide-react";
+import { IPTVChannel, RestaurantItem, SmartRoomIoT, HospitalityTV } from "../types";
+import { Monitor, Volume2, Flame, Thermometer, Moon, Sun, ShoppingBag, Send, AlertOctagon, Power, Heart, Wifi, RefreshCw } from "lucide-react";
 
 interface GuestPortalModuleProps {
   channels: IPTVChannel[];
   iotStates: SmartRoomIoT[];
+  tvs: HospitalityTV[];
+  onSendCommand: (id: string, command: string, value: any) => void;
   onPlaceOrder: (order: { roomNumber: string; items: { item: RestaurantItem; quantity: number }[]; paymentMethod: string }) => void;
   onUpdateIoT: (roomNumber: string, updates: Partial<SmartRoomIoT>) => void;
   onSendMessage: (roomNumber: string, text: string, sender: string) => void;
   messages: any[];
+  menuItems?: RestaurantItem[];
 }
 
-export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, onUpdateIoT, onSendMessage, messages }: GuestPortalModuleProps) {
+export default function GuestPortalModule({ 
+  channels, 
+  iotStates, 
+  tvs, 
+  onSendCommand, 
+  onPlaceOrder, 
+  onUpdateIoT, 
+  onSendMessage, 
+  messages,
+  menuItems = []
+}: GuestPortalModuleProps) {
   const [selectedRoom, setSelectedRoom] = useState("101");
   const [tvPower, setTvPower] = useState(true);
   const [activeMenu, setActiveMenu] = useState<"streams" | "dining" | "room" | "concierge" | "guide">("streams");
@@ -31,6 +43,22 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
   const activeIoT = iotStates.find(i => i.roomNumber === selectedRoom) || {
     roomNumber: selectedRoom, doorLocked: true, lightsIntensity: 50, hvacOn: true, thermostatTemp: 22.0, curtainsOpen: false, occupancyDetected: true, energyConsumption: 5.2
   };
+
+  // Find corresponding physical TV in the hotel fleet
+  const realTv = tvs.find(t => t.roomNumber === selectedRoom);
+
+  // Automatically keep the simulator UI in complete sync with physical TV hardware updates!
+  useEffect(() => {
+    if (realTv) {
+      setTvPower(realTv.status === "online");
+      setTvVolume(realTv.volume);
+      // Synchronize simulated channel with physical TV's active input/channel name
+      const matchingChan = channels.find(c => c.name === realTv.inputSource);
+      if (matchingChan) {
+        setCurrentChannel(matchingChan);
+      }
+    }
+  }, [realTv?.id, realTv?.status, realTv?.volume, realTv?.inputSource, channels]);
 
   useEffect(() => {
     // If channels update, keep sync
@@ -54,7 +82,7 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
 
   const handleCheckoutDining = () => {
     const itemsToOrder = Object.entries(cart).map(([id, qty]) => {
-      const menu = RESTAURANT_MENU.find(m => m.id === id);
+      const menu = menuItems.find(m => m.id === id);
       return { item: menu!, quantity: Number(qty) };
     }).filter(i => i.item !== undefined);
 
@@ -95,14 +123,79 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
           <select 
             value={selectedRoom}
             onChange={(e) => setSelectedRoom(e.target.value)}
-            className="p-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white cursor-pointer outline-none text-slate-800"
+            className="p-1.5 border border-slate-200 rounded-lg text-xs font-semibold bg-white cursor-pointer outline-none text-slate-800 focus:ring-1 focus:ring-indigo-500"
           >
             <option value="101">Room 101 (Suite - David Beckham)</option>
             <option value="102">Room 102 (Deluxe - Elena Rostova)</option>
+            <option value="103">Room 103 (Standard - Standby TV)</option>
             <option value="201">Room 201 (Penthouse - Kenji Sato)</option>
+            <option value="202">Room 202 (Deluxe - Offline TV)</option>
           </select>
         </div>
       </div>
+
+      {/* Real-time Hardware Sync Status Banner */}
+      {realTv && (
+        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-3 w-3 relative">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                realTv.status === "online" ? "bg-emerald-400" : realTv.status === "standby" ? "bg-amber-400" : "bg-red-400"
+              }`} />
+              <span className={`relative inline-flex rounded-full h-3 w-3 ${
+                realTv.status === "online" ? "bg-emerald-500" : realTv.status === "standby" ? "bg-amber-500" : "bg-red-500"
+              }`} />
+            </span>
+            <div>
+              <span className="font-bold text-slate-700">Hard-Linked Physical Device:</span>{" "}
+              <span className="font-mono text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded font-bold">
+                Room {realTv.roomNumber} - {realTv.brand} ({realTv.ipAddress})
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3.5 text-slate-500">
+            <span className="flex items-center gap-1 font-semibold">
+              <span className="text-slate-400">Power Status:</span>
+              <span className={`capitalize font-bold ${
+                realTv.status === "online" ? "text-emerald-600" : realTv.status === "standby" ? "text-amber-600" : "text-red-600"
+              }`}>{realTv.status}</span>
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1 font-semibold">
+              <span className="text-slate-400">Hardware Vol:</span>
+              <span className="font-bold text-slate-800">{realTv.volume}</span>
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1 font-semibold">
+              <span className="text-slate-400">Active Source:</span>
+              <span className="font-bold text-slate-800 truncate max-w-[120px]">{realTv.inputSource}</span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                onSendCommand(realTv.id, "reboot", null);
+                alert(`OTA reboot command sent to Room ${realTv.roomNumber} TV!`);
+              }}
+              disabled={realTv.status === "offline"}
+              className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-lg font-bold text-[10px] shadow-sm disabled:opacity-50 cursor-pointer transition-colors"
+            >
+              Reboot TV Hardware
+            </button>
+            <button
+              onClick={() => {
+                const nextStatus = realTv.status === "online" ? "standby" : "online";
+                onSendCommand(realTv.id, "status", nextStatus);
+              }}
+              className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[10px] shadow-sm cursor-pointer transition-colors"
+            >
+              Toggle Power
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* TV Chassis frame */}
@@ -112,10 +205,26 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
             
             {/* Screen */}
             <div className="aspect-video bg-neutral-900 rounded-2xl overflow-hidden relative flex flex-col justify-between text-white select-none">
-              {!tvPower ? (
-                <div className="absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center text-gray-600 font-semibold text-sm">
-                  <Power className="h-10 w-10 text-gray-700 mb-2 cursor-pointer" onClick={() => setTvPower(true)} />
-                  TV STANDBY MODE
+              {!tvPower || realTv?.status === "standby" ? (
+                <div className="absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center text-gray-500 font-semibold text-xs tracking-wider space-y-3">
+                  <Power 
+                    className="h-10 w-10 text-neutral-700 hover:text-red-600 transition-colors cursor-pointer" 
+                    onClick={() => {
+                      if (realTv) {
+                        onSendCommand(realTv.id, "status", "online");
+                      } else {
+                        setTvPower(true);
+                      }
+                    }} 
+                  />
+                  <span>TV STANDBY MODE</span>
+                  <span className="text-[10px] text-gray-600">Click Red remote power button or tap sensor to turn on</span>
+                </div>
+              ) : realTv?.status === "offline" ? (
+                <div className="absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center text-red-500/80 font-bold text-xs tracking-wider space-y-2">
+                  <AlertOctagon className="h-10 w-10 text-red-600" />
+                  <span>TV IS UNREACHABLE (OFFLINE)</span>
+                  <span className="text-[10px] text-gray-500 font-normal">Check physical power connection or trigger OTA Reboot in settings panel.</span>
                 </div>
               ) : (
                 <>
@@ -127,7 +236,7 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
                     </div>
                     <div className="flex items-center gap-3 text-xs text-gray-300 font-medium">
                       <div className="flex items-center gap-1">
-                        <Wifi className="h-3 w-3 text-emerald-400" />
+                        <Wifi className="h-3 w-3 text-emerald-400 animate-pulse" />
                         <span className="text-emerald-400">Connected</span>
                       </div>
                       <span>Cloud Sync OK</span>
@@ -169,7 +278,7 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
                           <span className="text-[10px] text-gray-400">Billed to Folio</span>
                         </h3>
                         <div className="grid grid-cols-2 gap-2 pb-14">
-                          {RESTAURANT_MENU.map((item) => (
+                          {menuItems.map((item) => (
                             <div key={item.id} className="bg-neutral-900 border border-white/5 p-2 rounded-lg flex items-center justify-between hover:border-yellow-400/20">
                               <div className="flex items-center gap-2">
                                 <span className="text-xl">{item.image}</span>
@@ -402,10 +511,18 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
             <div className="bg-neutral-100 p-4 rounded-2xl border border-neutral-200 shadow-inner flex flex-col items-center space-y-4 max-w-[200px] mx-auto">
               {/* Power button */}
               <button 
-                onClick={() => setTvPower(!tvPower)}
+                onClick={() => {
+                  if (realTv) {
+                    const nextStatus = realTv.status === "online" ? "standby" : "online";
+                    onSendCommand(realTv.id, "status", nextStatus);
+                  } else {
+                    setTvPower(!tvPower);
+                  }
+                }}
                 className={`h-10 w-10 rounded-full flex items-center justify-center shadow-md cursor-pointer transition-colors ${
-                  tvPower ? "bg-red-600 hover:bg-red-700 text-white" : "bg-neutral-800 text-red-500"
+                  tvPower && realTv?.status !== "standby" ? "bg-red-600 hover:bg-red-700 text-white" : "bg-neutral-800 text-red-500"
                 }`}
+                title="Toggle physical standby status"
               >
                 <Power className="h-5 w-5" />
               </button>
@@ -414,13 +531,16 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
                 <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-200 shadow-sm flex flex-col items-center justify-center">
                   <span>VOL +</span>
                   <button 
+                    disabled={realTv?.status === "offline"}
                     onClick={() => {
-                      if (tvVolume < 50) {
-                        setTvVolume(v => v + 1);
-                        onUpdateIoT(selectedRoom, { energyConsumption: Number((activeIoT.energyConsumption + 0.05).toFixed(1)) });
+                      const nextVolume = Math.min(50, tvVolume + 1);
+                      setTvVolume(nextVolume);
+                      if (realTv) {
+                        onSendCommand(realTv.id, "volume", nextVolume);
                       }
+                      onUpdateIoT(selectedRoom, { energyConsumption: Number((activeIoT.energyConsumption + 0.05).toFixed(1)) });
                     }}
-                    className="p-1.5 bg-white hover:bg-neutral-100 border border-neutral-200 rounded-md mt-1 w-full text-center font-bold cursor-pointer"
+                    className="p-1.5 bg-white hover:bg-neutral-100 border border-neutral-200 rounded-md mt-1 w-full text-center font-bold cursor-pointer disabled:opacity-50"
                   >
                     +
                   </button>
@@ -428,10 +548,15 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
                 <div className="bg-neutral-50 p-1.5 rounded-lg border border-neutral-200 shadow-sm flex flex-col items-center justify-center">
                   <span>VOL -</span>
                   <button 
+                    disabled={realTv?.status === "offline"}
                     onClick={() => {
-                      if (tvVolume > 0) setTvVolume(v => v - 1);
+                      const nextVolume = Math.max(0, tvVolume - 1);
+                      setTvVolume(nextVolume);
+                      if (realTv) {
+                        onSendCommand(realTv.id, "volume", nextVolume);
+                      }
                     }}
-                    className="p-1.5 bg-white hover:bg-neutral-100 border border-neutral-200 rounded-md mt-1 w-full text-center font-bold cursor-pointer"
+                    className="p-1.5 bg-white hover:bg-neutral-100 border border-neutral-200 rounded-md mt-1 w-full text-center font-bold cursor-pointer disabled:opacity-50"
                   >
                     -
                   </button>
@@ -445,12 +570,16 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
                   {channels.map((chan) => (
                     <button 
                       key={chan.id}
+                      disabled={realTv?.status === "offline" || realTv?.status === "standby"}
                       onClick={() => {
                         setCurrentChannel(chan);
                         setIsPlaying(true);
                         setActiveMenu("streams");
+                        if (realTv) {
+                          onSendCommand(realTv.id, "input", chan.name);
+                        }
                       }}
-                      className={`w-full text-left p-1 rounded hover:bg-neutral-200/50 text-[10px] flex items-center gap-1 cursor-pointer truncate ${
+                      className={`w-full text-left p-1 rounded hover:bg-neutral-200/50 text-[10px] flex items-center gap-1 cursor-pointer truncate disabled:opacity-50 ${
                         currentChannel?.id === chan.id ? "bg-black text-white" : "text-gray-700"
                       }`}
                     >
@@ -469,7 +598,7 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Cart Checklist</span>
               <div className="space-y-1.5 max-h-[120px] overflow-y-auto text-xs text-gray-600">
                 {Object.entries(cart).map(([id, qty]) => {
-                  const item = RESTAURANT_MENU.find(m => m.id === id);
+                  const item = menuItems.find(m => m.id === id);
                   if (!item) return null;
                   const itemQty = Number(qty);
                   return (
@@ -492,7 +621,7 @@ export default function GuestPortalModule({ channels, iotStates, onPlaceOrder, o
               <div className="border-t border-dashed border-gray-200 pt-2 flex justify-between items-center font-bold text-xs">
                 <span>Total:</span>
                 <span className="text-gray-900 text-sm">
-                  ${Object.entries(cart).reduce((sum, [id, qty]) => sum + ((RESTAURANT_MENU.find(m => m.id === id)?.price || 0) * Number(qty)), 0).toFixed(2)}
+                  ${Object.entries(cart).reduce((sum, [id, qty]) => sum + ((menuItems.find(m => m.id === id)?.price || 0) * Number(qty)), 0).toFixed(2)}
                 </span>
               </div>
 

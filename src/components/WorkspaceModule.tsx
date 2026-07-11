@@ -154,11 +154,11 @@ export default function WorkspaceModule({ guests, onAddLog }: WorkspaceModulePro
       );
 
       if (!listRes.ok) {
-        if (listRes.status === 401) {
+        if (listRes.status === 401 || listRes.status === 403) {
           handleTokenExpiration();
-          throw new Error("Session expired. Please sign in again.");
+          throw new Error("Google Workspace authentication expired or permissions are missing. Please reconnect your account.");
         }
-        throw new Error(`Gmail API list failed: ${listRes.statusText}`);
+        throw new Error(`Gmail API list failed: ${listRes.status} ${listRes.statusText || ""}`);
       }
 
       const listData = await listRes.json();
@@ -305,11 +305,11 @@ export default function WorkspaceModule({ guests, onAddLog }: WorkspaceModulePro
       );
 
       if (!res.ok) {
-        if (res.status === 401) {
+        if (res.status === 401 || res.status === 403) {
           handleTokenExpiration();
-          throw new Error("Session expired. Please sign in again.");
+          throw new Error("Google Workspace authentication expired or permissions are missing. Please reconnect your account.");
         }
-        throw new Error(`Calendar API failed: ${res.statusText}`);
+        throw new Error(`Calendar API failed: ${res.status} ${res.statusText || ""}`);
       }
 
       const data = await res.json();

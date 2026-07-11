@@ -14,6 +14,8 @@ import IoTModule from "./components/IoTModule";
 import AnalyticsModule from "./components/AnalyticsModule";
 import DeploymentModule from "./components/DeploymentModule";
 import WorkspaceModule from "./components/WorkspaceModule";
+import LoginPage from "./components/LoginPage";
+import SettingsModule from "./components/SettingsModule";
 
 // Icons
 import { 
@@ -23,6 +25,26 @@ import {
 } from "lucide-react";
 
 export default function App() {
+  // Authentication Gate State
+  const [authenticatedUser, setAuthenticatedUser] = useState<{ name: string; email: string } | null>(() => {
+    const cached = localStorage.getItem("aenzbi_auth");
+    return cached ? JSON.parse(cached) : null;
+  });
+
+  const handleLoginSuccess = (user: { name: string; email: string }) => {
+    localStorage.setItem("aenzbi_auth", JSON.stringify(user));
+    setAuthenticatedUser(user);
+    handleAddSystemLog("security", "Auth Gate", `Administrator logged in: ${user.name} (${user.email})`);
+  };
+
+  const handleLogout = () => {
+    if (authenticatedUser) {
+      handleAddSystemLog("security", "Auth Gate", `Administrator logged out: ${authenticatedUser.name}`);
+    }
+    localStorage.removeItem("aenzbi_auth");
+    setAuthenticatedUser(null);
+  };
+
   // Navigation
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -38,6 +60,24 @@ export default function App() {
   const [iotStates, setIotStates] = useState<SmartRoomIoT[]>([]);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [folios, setFolios] = useState<{ [roomNumber: string]: FolioCharge[] }>({});
+  
+  // PMS and IoT missing properties states
+  const [softwarePackages, setSoftwarePackages] = useState<any[]>([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>({
+    orgName: "Luxor Grand Resorts & Spas",
+    orgSlogan: "Luxury Hospitality & Branded Entertainment",
+    supportEmail: "support@luxorresorts.com",
+    supportPhone: "+1 (800) 555-0199",
+    address: "777 Las Vegas Blvd, Las Vegas, NV",
+    timezone: "UTC-8 (Pacific Time)",
+    currency: "USD ($)",
+    suiteRate: 450,
+    penthouseRate: 1200,
+    deluxeRate: 350,
+    standardRate: 180,
+    defaultCleanInterval: 24,
+  });
 
   const [loading, setLoading] = useState(true);
 
@@ -48,21 +88,43 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  const safeFetchJson = async <T,>(url: string, defaultValue: T): Promise<T> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        console.warn(`Fetch to ${url} failed with status: ${res.status}`);
+        return defaultValue;
+      }
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        console.warn(`Fetch to ${url} did not return JSON. Content-Type: ${contentType}`);
+        return defaultValue;
+      }
+      return await res.json() as T;
+    } catch (error) {
+      console.warn(`Fetch to ${url} threw error:`, error);
+      return defaultValue;
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [
         channelsRes, headendsRes, tvsRes, roomsRes, guestsRes, 
-        ordersRes, messagesRes, iotRes, logsRes
+        ordersRes, messagesRes, iotRes, logsRes, softwareRes, menuRes, settingsRes
       ] = await Promise.all([
-        fetch("/api/channels").then(r => r.json()),
-        fetch("/api/headends").then(r => r.json()),
-        fetch("/api/tvs").then(r => r.json()),
-        fetch("/api/rooms").then(r => r.json()),
-        fetch("/api/guests").then(r => r.json()),
-        fetch("/api/orders").then(r => r.json()),
-        fetch("/api/messages").then(r => r.json()),
-        fetch("/api/iot").then(r => r.json()),
-        fetch("/api/logs").then(r => r.json()),
+        safeFetchJson<IPTVChannel[]>("/api/channels", channels),
+        safeFetchJson<any[]>("/api/headends", headends),
+        safeFetchJson<HospitalityTV[]>("/api/tvs", tvs),
+        safeFetchJson<Room[]>("/api/rooms", rooms),
+        safeFetchJson<any[]>("/api/guests", guests),
+        safeFetchJson<any[]>("/api/orders", orders),
+        safeFetchJson<any[]>("/api/messages", messages),
+        safeFetchJson<any[]>("/api/iot", iotStates),
+        safeFetchJson<any[]>("/api/logs", logs),
+        safeFetchJson<any[]>("/api/tv-software", softwarePackages),
+        safeFetchJson<any[]>("/api/menu", menuItems),
+        safeFetchJson<any>("/api/settings", settings),
       ]);
 
       setChannels(channelsRes);
@@ -74,16 +136,18 @@ export default function App() {
       setMessages(messagesRes);
       setIotStates(iotRes);
       setLogs(logsRes);
+      setSoftwarePackages(softwareRes);
+      setMenuItems(menuRes);
+      if (settingsRes && settingsRes.orgName) {
+        setSettings(settingsRes);
+      }
 
-      // Fetch all room folios
-      const roomNumbers = ["101", "102", "103", "201", "202"];
+      // Fetch all room folios dynamically
+      const roomNumbers = roomsRes.map((r: any) => r.number);
       const foliosDict: { [roomNumber: string]: FolioCharge[] } = {};
       await Promise.all(
-        roomNumbers.map(async (num) => {
-          const res = await fetch(`/api/folios/${num}`);
-          if (res.ok) {
-            foliosDict[num] = await res.json();
-          }
+        roomNumbers.map(async (num: string) => {
+          foliosDict[num] = await safeFetchJson<FolioCharge[]>(`/api/folios/${num}`, folios[num] || []);
         })
       );
       setFolios(foliosDict);
@@ -145,6 +209,120 @@ export default function App() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updates)
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleCreateRoom = async (payload: { number: string; building: string; floor: number; type: Room["type"] }) => {
+    const res = await fetch("/api/rooms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleDeleteRoom = async (roomNumber: string) => {
+    const res = await fetch(`/api/rooms/${roomNumber}`, {
+      method: "DELETE"
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleAddSoftwarePackage = async (payload: { name: string; version: string; platform: string; changelog: string }) => {
+    const res = await fetch("/api/tv-software", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleUpgradeTV = async (tvId: string, version: string, firmware?: string) => {
+    const res = await fetch(`/api/tvs/${tvId}/upgrade`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version, firmware })
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleCreateTV = async (payload: { roomNumber: string; brand: string; ipAddress: string; appVersion: string; firmware: string }) => {
+    const res = await fetch("/api/tvs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      fetchData();
+    } else {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to register TV device.");
+    }
+  };
+
+  const handleUpdateTV = async (id: string, updates: Partial<HospitalityTV>) => {
+    const res = await fetch(`/api/tvs/${id}/config`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates)
+    });
+    if (res.ok) {
+      fetchData();
+    } else {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to update TV device.");
+    }
+  };
+
+  const handleDeleteTV = async (id: string) => {
+    const res = await fetch(`/api/tvs/${id}`, {
+      method: "DELETE"
+    });
+    if (res.ok) {
+      fetchData();
+    } else {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to delete TV device.");
+    }
+  };
+
+  const handleUpdateSettings = async (updates: any) => {
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setSettings(data);
+      fetchData();
+    } else {
+      throw new Error("Failed to update system settings.");
+    }
+  };
+
+  const handleAddMenuItem = async (payload: { name: string; category: string; price: number; image: string; stock: number }) => {
+    const res = await fetch("/api/menu", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleUpdateMenuItem = async (id: string, updates: Partial<any>) => {
+    const res = await fetch(`/api/menu/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates)
+    });
+    if (res.ok) fetchData();
+  };
+
+  const handleDeleteMenuItem = async (id: string) => {
+    const res = await fetch(`/api/menu/${id}`, {
+      method: "DELETE"
     });
     if (res.ok) fetchData();
   };
@@ -274,13 +452,52 @@ export default function App() {
       case "headend":
         return <HeadendModule devices={headends} onRebootDevice={handleRebootHeadend} />;
       case "tvs":
-        return <HospitalityTVModule tvs={tvs} onSendCommand={handleSendCommandTV} />;
+        return (
+          <HospitalityTVModule 
+            tvs={tvs} 
+            onSendCommand={handleSendCommandTV} 
+            softwarePackages={softwarePackages}
+            onAddSoftwarePackage={handleAddSoftwarePackage}
+            onUpgradeTV={handleUpgradeTV}
+            onCreateTV={handleCreateTV}
+            onUpdateTV={handleUpdateTV}
+            onDeleteTV={handleDeleteTV}
+          />
+        );
+      case "settings":
+        return (
+          <SettingsModule 
+            settings={settings} 
+            onUpdateSettings={handleUpdateSettings} 
+            rooms={rooms} 
+            onUpdateRoom={handleUpdateRoomPMS} 
+          />
+        );
       case "pms":
-        return <HotelModule rooms={rooms} guests={guests} onCheckIn={handleCheckInGuest} onCheckOut={handleCheckOutGuest} onUpdateRoom={handleUpdateRoomPMS} />;
+        return (
+          <HotelModule 
+            rooms={rooms} 
+            guests={guests} 
+            onCheckIn={handleCheckInGuest} 
+            onCheckOut={handleCheckOutGuest} 
+            onUpdateRoom={handleUpdateRoomPMS} 
+            onCreateRoom={handleCreateRoom}
+            onDeleteRoom={handleDeleteRoom}
+          />
+        );
       case "simulator":
-        return <GuestPortalModule channels={channels} iotStates={iotStates} onPlaceOrder={handlePlaceDiningOrder} onUpdateIoT={handleUpdateIoT} onSendMessage={handleSendMessage} messages={messages} />;
+        return <GuestPortalModule channels={channels} iotStates={iotStates} tvs={tvs} onSendCommand={handleSendCommandTV} onPlaceOrder={handlePlaceDiningOrder} onUpdateIoT={handleUpdateIoT} onSendMessage={handleSendMessage} messages={messages} />;
       case "restaurant":
-        return <RestaurantModule orders={orders} onUpdateOrderStatus={handleUpdateOrderStatus} />;
+        return (
+          <RestaurantModule 
+            orders={orders} 
+            onUpdateOrderStatus={handleUpdateOrderStatus} 
+            menuItems={menuItems}
+            onAddMenuItem={handleAddMenuItem}
+            onUpdateMenuItem={handleUpdateMenuItem}
+            onDeleteMenuItem={handleDeleteMenuItem}
+          />
+        );
       case "billing":
         return <BillingModule guests={guests} folios={folios} onAddCharge={handleAddFolioCharge} />;
       case "comms":
@@ -448,6 +665,7 @@ export default function App() {
     { id: "iot", label: "In-Room Smart IoT Nodes", icon: <Zap className="h-4 w-4" /> },
     { id: "analytics", label: "Business Analytics & AI", icon: <BarChart3 className="h-4 w-4" /> },
     { id: "deployment", label: "Infrastructure Manifests", icon: <HardDrive className="h-4 w-4" /> },
+    { id: "settings", label: "System & Org Settings", icon: <Settings className="h-4 w-4" /> },
   ];
 
   if (loading) {
@@ -457,6 +675,10 @@ export default function App() {
         <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest animate-pulse">Initializing Aenzbi IPTV System...</span>
       </div>
     );
+  }
+
+  if (!authenticatedUser) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
@@ -516,7 +738,7 @@ export default function App() {
             </button>
             <div className="flex items-center gap-1.5 text-xs">
               <span className="text-slate-500">Organization:</span>
-              <span className="font-semibold text-slate-800">Luxor Grand Resorts & Spas</span>
+              <span className="font-semibold text-slate-800">{settings.orgName}</span>
             </div>
           </div>
 
@@ -528,7 +750,22 @@ export default function App() {
             </div>
             <div className="flex items-center gap-3">
               <div className="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-[11px] font-bold">v4.2.0 Stable</div>
-              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs text-indigo-600 shadow-sm border border-slate-300">JD</div>
+              <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 p-1.5 rounded-xl">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-xs text-white shadow-sm font-mono">
+                  {authenticatedUser ? authenticatedUser.name.substring(0, 2).toUpperCase() : "AD"}
+                </div>
+                <div className="hidden md:block text-left text-[10px]">
+                  <span className="font-extrabold text-slate-700 block leading-none">{authenticatedUser?.name || "Admin"}</span>
+                  <span className="text-slate-400 block mt-0.5 leading-none">{authenticatedUser?.email}</span>
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  className="p-1 text-slate-400 hover:text-red-500 rounded-md cursor-pointer transition-colors"
+                  title="Sign Out"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </header>
