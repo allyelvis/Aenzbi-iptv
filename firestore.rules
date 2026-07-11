@@ -177,80 +177,80 @@ service cloud.firestore {
     // Rules matching each collection
 
     match /channels/{channelId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidChannel(request.resource.data) && isValidId(channelId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidChannel(request.resource.data) && isValidId(channelId);
+      allow delete: if true;
     }
 
     match /headends/{headendId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidHeadend(request.resource.data) && isValidId(headendId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidHeadend(request.resource.data) && isValidId(headendId);
+      allow delete: if true;
     }
 
     match /tvs/{tvId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidTv(request.resource.data) && isValidId(tvId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidTv(request.resource.data) && isValidId(tvId);
+      allow delete: if true;
     }
 
     match /guests/{guestId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidGuest(request.resource.data) && isValidId(guestId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidGuest(request.resource.data) && isValidId(guestId);
+      allow delete: if true;
     }
 
     match /rooms/{roomNumber} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidRoom(request.resource.data) && isValidId(roomNumber);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidRoom(request.resource.data) && isValidId(roomNumber);
+      allow delete: if true;
     }
 
     match /orders/{orderId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidOrder(request.resource.data) && isValidId(orderId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidOrder(request.resource.data) && isValidId(orderId);
+      allow delete: if true;
     }
 
     match /folios/{folioId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidFolioCharge(request.resource.data) && isValidId(folioId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidFolioCharge(request.resource.data) && isValidId(folioId);
+      allow delete: if true;
     }
 
     match /messages/{messageId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidMessage(request.resource.data) && isValidId(messageId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidMessage(request.resource.data) && isValidId(messageId);
+      allow delete: if true;
     }
 
     match /iotStates/{roomNumber} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidIotState(request.resource.data) && isValidId(roomNumber);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidIotState(request.resource.data) && isValidId(roomNumber);
+      allow delete: if true;
     }
 
     match /systemLogs/{logId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidSystemLog(request.resource.data) && isValidId(logId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidSystemLog(request.resource.data) && isValidId(logId);
+      allow delete: if true;
     }
 
     match /menuItems/{menuItemId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidMenuItem(request.resource.data) && isValidId(menuItemId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidMenuItem(request.resource.data) && isValidId(menuItemId);
+      allow delete: if true;
     }
 
     match /softwarePackages/{packageId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidSoftwarePackage(request.resource.data) && isValidId(packageId);
-      allow delete: if isSignedIn();
+      allow read: if true;
+      allow create, update: if isValidSoftwarePackage(request.resource.data) && isValidId(packageId);
+      allow delete: if true;
     }
 
     match /settings/config {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidSettings(request.resource.data);
+      allow read: if true;
+      allow create, update: if isValidSettings(request.resource.data);
       allow delete: if false;
     }
   }
