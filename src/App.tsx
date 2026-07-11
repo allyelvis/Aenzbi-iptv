@@ -13,12 +13,13 @@ import CommunicationModule from "./components/CommunicationModule";
 import IoTModule from "./components/IoTModule";
 import AnalyticsModule from "./components/AnalyticsModule";
 import DeploymentModule from "./components/DeploymentModule";
+import WorkspaceModule from "./components/WorkspaceModule";
 
 // Icons
 import { 
   BarChart3, Monitor, Server, Settings, Hotel, ChefHat, CreditCard, 
   MessageSquare, Zap, HardDrive, ShieldAlert, Heart, Terminal, 
-  Menu, X, Radio, Activity, LayoutDashboard, Clock
+  Menu, X, Radio, Activity, LayoutDashboard, Clock, Sparkles, Download
 } from "lucide-react";
 
 export default function App() {
@@ -218,6 +219,45 @@ export default function App() {
     throw new Error("API report failed");
   };
 
+  const handleAddSystemLog = async (severity: string, module: string, message: string) => {
+    const res = await fetch("/api/logs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ severity, module, message })
+    });
+    if (res.ok) fetchData();
+  };
+
+  const downloadLogsCSV = () => {
+    const escapeCsvValue = (val: string) => {
+      const escaped = val.replace(/"/g, '""');
+      if (escaped.includes(',') || escaped.includes('\n') || escaped.includes('"')) {
+        return `"${escaped}"`;
+      }
+      return escaped;
+    };
+
+    const headers = ["ID", "Timestamp", "Severity", "Module", "Message"];
+    const rows = logs.map(log => [
+      escapeCsvValue(log.id),
+      escapeCsvValue(log.timestamp),
+      escapeCsvValue(log.severity),
+      escapeCsvValue(log.module),
+      escapeCsvValue(log.message)
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `aenzbi_system_logs_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const getSeverityStyle = (sev: SystemLog["severity"]) => {
     switch (sev) {
       case "info": return "text-blue-500 bg-blue-50";
@@ -249,6 +289,8 @@ export default function App() {
         return <IoTModule iotStates={iotStates} onUpdateIoT={handleUpdateIoT} />;
       case "analytics":
         return <AnalyticsModule onGenerateReport={handleGenerateReportAI} />;
+      case "workspace":
+        return <WorkspaceModule guests={guests} onAddLog={handleAddSystemLog} />;
       case "deployment":
         return <DeploymentModule />;
       
@@ -357,11 +399,19 @@ export default function App() {
 
               {/* Real-time Syslog Stream */}
               <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/70">
+                <div className="px-5 py-4 border-b border-slate-200 bg-slate-50/70 flex justify-between items-center">
                   <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
                     <Terminal className="h-4 w-4 text-slate-500" />
                     System Activity Logs
                   </h3>
+                  <button
+                    onClick={downloadLogsCSV}
+                    className="px-2.5 py-1 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm shadow-indigo-100 flex items-center gap-1 cursor-pointer transition-colors"
+                    id="download-logs-csv-btn"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download CSV
+                  </button>
                 </div>
 
                 <div className="p-5 space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
@@ -390,6 +440,7 @@ export default function App() {
     { id: "headend", label: "RF Headend Transcoders", icon: <Server className="h-4 w-4" /> },
     { id: "tvs", label: "Hospitality TV Fleet Control", icon: <Monitor className="h-4 w-4" /> },
     { id: "pms", label: "Front Desk PMS Directory", icon: <Hotel className="h-4 w-4" /> },
+    { id: "workspace", label: "Google Workspace Hub", icon: <Sparkles className="h-4 w-4 text-indigo-400" /> },
     { id: "simulator", label: "Room TV Screen Simulator", icon: <Monitor className="h-4 w-4 text-emerald-400" /> },
     { id: "restaurant", label: "Kitchen POS / KDS", icon: <ChefHat className="h-4 w-4" /> },
     { id: "billing", label: "Folio ledger & Billing", icon: <CreditCard className="h-4 w-4" /> },

@@ -442,6 +442,12 @@ app.get("/api/logs", (req, res) => {
   res.json(systemLogs);
 });
 
+app.post("/api/logs", (req, res) => {
+  const { severity, module, message } = req.body;
+  addLog(severity || "info", module || "System", message || "");
+  res.json({ success: true });
+});
+
 
 // -------------------------------------------------------------
 // AI CONCIERGE & ANALYTICS PREDICTIONS (GEMINI API)
