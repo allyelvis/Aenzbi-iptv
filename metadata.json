@@ -1,0 +1,6 @@
+{
+  "name": "Aenzbi IPTV",
+  "description": "Enterprise IPTV Hospitality Management Platform for central configuration, stream orchestration, guest operations, billing, and IoT smart room control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
