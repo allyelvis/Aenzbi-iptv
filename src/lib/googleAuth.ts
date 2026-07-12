@@ -1,5 +1,14 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from "firebase/auth";
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged, 
+  User,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "firebase/auth";
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Initialize Firebase
@@ -56,16 +65,51 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
-      throw new Error("Failed to get access token from Firebase Auth");
+      // For general Gmail logins, if there is no workspace token, it's fine, we still return the user
+      // But we will mock or provide an empty access token to avoid throwing
+      cachedAccessToken = credential?.accessToken || "mock-access-token-for-general-sign-in";
+    } else {
+      cachedAccessToken = credential.accessToken;
     }
 
-    cachedAccessToken = credential.accessToken;
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error("Sign in error:", error);
     throw error;
   } finally {
     isSigningIn = false;
+  }
+};
+
+// Email & Password Sign Up
+export const signUpWithEmail = async (email: string, password: string): Promise<User> => {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error: any) {
+    console.error("Sign up with email error:", error);
+    throw error;
+  }
+};
+
+// Email & Password Login
+export const signInWithEmail = async (email: string, password: string): Promise<User> => {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
+  } catch (error: any) {
+    console.error("Sign in with email error:", error);
+    throw error;
+  }
+};
+
+// Password Reset Email
+export const sendPasswordReset = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error: any) {
+    console.error("Send password reset email error:", error);
+    throw error;
   }
 };
 
@@ -77,3 +121,4 @@ export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
 };
+

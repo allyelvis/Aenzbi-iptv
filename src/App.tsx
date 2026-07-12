@@ -16,6 +16,7 @@ import DeploymentModule from "./components/DeploymentModule";
 import WorkspaceModule from "./components/WorkspaceModule";
 import LoginPage from "./components/LoginPage";
 import SettingsModule from "./components/SettingsModule";
+import { logout as firebaseLogout } from "./lib/googleAuth";
 
 // Icons
 import { 
@@ -41,6 +42,7 @@ export default function App() {
     if (authenticatedUser) {
       handleAddSystemLog("security", "Auth Gate", `Administrator logged out: ${authenticatedUser.name}`);
     }
+    firebaseLogout().catch(err => console.error("Firebase logout error:", err));
     localStorage.removeItem("aenzbi_auth");
     setAuthenticatedUser(null);
   };
